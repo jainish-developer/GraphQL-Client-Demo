@@ -1,6 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:graphql_demo/constants/img_font_color_string.dart';
+import 'package:graphql_demo/model/character_model.dart';
 import 'package:graphql_demo/provider/api_provider.dart';
 import 'package:graphql_demo/screen/details.dart';
+import 'package:lazy_loading_list/lazy_loading_list.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,96 +15,151 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int pages = 1;
+
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
-    Provider.of<CharacterAPIProvider>(context, listen: false).fetchData();
+    fetchData();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
+          title: const Text("GraphQl Demo"),
         ),
-        body: buildItem());
+        body: _buildBody());
   }
 
-  Widget buildItem() {
+  Widget _buildBody() {
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, left: 8.0, right: 8),
       child: Consumer<CharacterAPIProvider>(
         builder: (context, characterProvider, child) {
-          print(
-            characterProvider.characters?.toJson()["data"]["characters"]["results"].length,
-          );
-          return characterProvider.characters!.toJson().isEmpty
+          return _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 5,
-                      mainAxisSpacing: 5),
-                      itemCount: characterProvider.characters?.toJson()["data"]["characters"]["results"].length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>  DetailView(images: characterProvider.characters
-                                            ?.toJson()["data"]["characters"]["results"][index]["image"],name: characterProvider.characters
-                                            ?.toJson()["data"]["characters"]["results"][index]["name"],index: index,),
-                            ));
+              : characterProvider.characters == null
+                  ? Center(child: Text(Constants.noDatafound))
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        pages = 1;
+                        await Provider.of<CharacterAPIProvider>(context,
+                                listen: false)
+                            .fetchData(pages);
                       },
-                      child: Container(
-                          decoration: BoxDecoration(
-                            image: DecorationImage(image: NetworkImage("${characterProvider.characters
-                                            ?.toJson()["data"]["characters"]["results"][index]["image"]}")),
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Container(
-                                  width: double.infinity,
-                                  decoration:  BoxDecoration(
-                                    
-                                      borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(10),
-                                          bottomRight: Radius.circular(10)),
-                                      gradient: const LinearGradient(
-                                          colors: [
-                                            Colors.black,
-                                            Colors.black38,
-                                          ],
-                                          begin: Alignment.bottomCenter,
-                                          end: Alignment.topCenter)),
-                                  child: Padding(
-                                    padding: EdgeInsets.all(5.0),
-                                    child: Center(
-                                      child: Text(
-                                        characterProvider.characters
-                                            ?.toJson()["data"]["characters"]["results"][index]["name"],
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            //  fontWeight: FontWeight.bold,
-                                            color: Colors.white),
-                                            textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )),
+                      child: GridView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 10),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10),
+                          itemCount: characterProvider.characters?.data
+                                  ?.characters?.results?.length ??
+                              0,
+                          itemBuilder: (context, index) {
+                            Result? result = characterProvider
+                                .characters?.data?.characters?.results![index];
+                            return LazyLoadingList(
+                                index: index,
+                                loadMore: () async {
+                                  debugPrint("More data loading...");
+                                  pages++;
+                                  await Provider.of<CharacterAPIProvider>(
+                                          context,
+                                          listen: false)
+                                      .fetchData(pages);
+                                },
+                                hasMore: pages <=
+                                    (characterProvider.characters?.data
+                                            ?.characters?.info?.pages ??
+                                        0),
+                                child: _buildCard(result));
+                          }),
                     );
-                  });
         },
       ),
     );
+  }
+
+  Widget _buildCard(
+    Result? result,
+  ) {
+    return InkWell(
+      onTap: () {
+        // Push to detail screen...
+        if (result != null) {
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DetailView(
+                  result: result,
+                ),
+              ));
+        }
+      },
+      child: Container(
+          decoration: BoxDecoration(
+              image: DecorationImage(
+                  image: CachedNetworkImageProvider(result?.image ?? "")),
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(10)),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(10),
+                          bottomRight: Radius.circular(10)),
+                      gradient: LinearGradient(
+                          colors: [
+                            Colors.black,
+                            Colors.black38,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter)),
+                  child: Center(
+                    child: Text(
+                      result?.name ?? "-",
+                      style: const TextStyle(fontSize: 18, color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+    );
+  }
+
+  Future<void> fetchData() async {
+    try {
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
+      await Provider.of<CharacterAPIProvider>(context, listen: false)
+          .fetchData(pages);
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }

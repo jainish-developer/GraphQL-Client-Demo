@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:graphql_demo/provider/api_provider.dart';
 import 'package:graphql_demo/screen/home_screen.dart';
-import 'package:graphql/client.dart';
 import 'package:provider/provider.dart';
 
 void main()  {

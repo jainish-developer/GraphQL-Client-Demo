@@ -7,7 +7,7 @@ import 'dart:convert';
 CharacterModel characterModelFromJson(Map<String, dynamic> str) =>
     CharacterModel.fromJson(str);
 
-String CharacterModelToJson(CharacterModel data) => json.encode(data.toJson());
+String characterModelToJson(CharacterModel data) => json.encode(data.toJson());
 
 class CharacterModel {
   CharacterModel({
@@ -17,7 +17,7 @@ class CharacterModel {
   Data? data;
 
   factory CharacterModel.fromJson(Map<String, dynamic> json) => CharacterModel(
-        data:json["data"]==null? null: Data.fromJson(json["data"]),
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -37,9 +37,9 @@ class Data {
   List<Location>? episodesByIds;
 
   factory Data.fromJson(Map<String, dynamic> json) => Data(
-        characters:json["characters"] == null
+        characters: json["characters"] == null
             ? null
-            :  Characters.fromJson(json["characters"]),
+            : Characters.fromJson(json["characters"]),
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
